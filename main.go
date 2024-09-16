@@ -4,20 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"go-app/download"
+	"go-app/server"
 )
-
-func server() http.Handler {
-	router := http.NewServeMux()
-	router.HandleFunc("/download", download.Download)
-	router.HandleFunc("/download-serial", download.DownloadSerial)
-	router.HandleFunc("/download-concurrent", download.DownloadConcurrent)
-	return router
-}
 
 func main() {
 	fmt.Println("Server starting at http://localhost:8080")
-	if err := http.ListenAndServe(":8080", server()); err != nil {
+	if err := http.ListenAndServe(":8080", server.Server()); err != nil {
 		fmt.Printf("Server failed to start: %v\n", err)
 	}
 }

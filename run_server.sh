@@ -15,7 +15,7 @@ while getopts ":e:n:" opt; do
   esac
 done
 
-kill $(lsof -ti:8080) 2>/dev/null
+kill $(lsof -ti:8080)
 go run main.go &
 sleep 1
 curl "http://localhost:8080/download$ENDPOINT?url=$URL&n=$N"

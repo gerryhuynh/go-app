@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func DownloadSerial(w http.ResponseWriter, r *http.Request) {
+func DownloadSequential(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	n, err := strconv.Atoi(query.Get("n"))
@@ -15,9 +15,8 @@ func DownloadSerial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := query.Get("url")
-	if url == "" {
-		http.Error(w, "URL parameter is required", http.StatusBadRequest)
+	url, ok := getURLParam(w, query)
+	if !ok {
 		return
 	}
 

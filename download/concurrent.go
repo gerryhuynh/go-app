@@ -10,15 +10,14 @@ import (
 func DownloadConcurrent(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	n, err := strconv.Atoi(query.Get("n"))
-	if err != nil {
-		http.Error(w, "Invalid or missing n parameter, must be an integer", http.StatusBadRequest)
+	url, ok := getURLParam(w, query)
+	if !ok {
 		return
 	}
 
-	url := query.Get("url")
-	if url == "" {
-		http.Error(w, "URL parameter is required", http.StatusBadRequest)
+	n, err := strconv.Atoi(query.Get("n"))
+	if err != nil {
+		http.Error(w, "Invalid or missing n parameter, must be an integer", http.StatusBadRequest)
 		return
 	}
 

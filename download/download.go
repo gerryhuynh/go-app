@@ -10,12 +10,14 @@ import (
 	"sync"
 )
 
-var fileNameMutex sync.Mutex
+const downloadDir = "filedownloads"
+const defaultFileName = "foo.zip"
+
+var fileMutex sync.Mutex
 
 func Download(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query().Get("url")
-	if url == "" {
-		http.Error(w, "URL parameter is required", http.StatusBadRequest)
+	url, ok := getURLParam(w, r.URL.Query())
+	if !ok {
 		return
 	}
 
@@ -29,45 +31,58 @@ func Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadFile(u string) error {
-	fileName := "foo.zip"
-
-	resp, err := http.Get(u)
+	resp, err := downloadFromURL(u)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
-	}
-
-	dir, err := getCurrentDirectory()
-	if err != nil {
-		return err
-	}
-	dir = dir + "/filedownloads"
-
-	fileNameMutex.Lock()
-	defer fileNameMutex.Unlock()
-
-	fileName, err = getUniqueFileName(dir, "foo.zip")
+	dir, err := getDownloadDir()
 	if err != nil {
 		return err
 	}
 
-	file, err := os.Create(filepath.Join(dir, fileName))
+	fileMutex.Lock()
+	defer fileMutex.Unlock()
+
+	fileName, err := getUniqueFileName(dir, defaultFileName)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
+	if err := saveFile(dir, fileName, resp); err != nil {
 		return err
 	}
 
 	fmt.Printf("File %q downloaded\n", fileName)
 	return nil
+}
+
+func downloadFromURL(u string) (*http.Response, error) {
+	resp, err := http.Get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
+	}
+
+	return resp, nil
+}
+
+func getDownloadDir() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	dir = filepath.Join(dir, downloadDir)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	return dir, nil
 }
 
 func getUniqueFileName(dir, fileName string) (string, error) {
@@ -80,15 +95,18 @@ func getUniqueFileName(dir, fileName string) (string, error) {
 			return fileName, nil
 		} else if err != nil {
 			return "", err
-			}
+		}
 		fileName = fmt.Sprintf("%s_%d%s", baseName, i, ext)
 	}
 }
 
-func getCurrentDirectory() (string, error) {
-	dir, err := os.Getwd()
+func saveFile(dir, fileName string, resp *http.Response) error {
+	file, err := os.Create(filepath.Join(dir, fileName))
 	if err != nil {
-		return "", err
+		return err
 	}
-	return dir, nil
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	return err
 }

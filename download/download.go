@@ -33,7 +33,6 @@ func downloadFile(u string) error {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("Status:", resp.Status)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
 	}
@@ -56,7 +55,12 @@ func downloadFile(u string) error {
 	defer file.Close()
 
 	_, err = io.Copy(file, resp.Body)
-	return err
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("File %q downloaded\n", fileName)
+	return nil
 }
 
 func getUniqueFileName(dir, fileName string) (string, error) {

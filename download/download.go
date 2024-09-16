@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 )
 
-func Download(w http.ResponseWriter, req *http.Request) {
-	url := req.URL.Query().Get("url")
+var fileNameMutex sync.Mutex
+
+func Download(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
 	if url == "" {
 		http.Error(w, "URL parameter is required", http.StatusBadRequest)
 		return
@@ -43,6 +47,9 @@ func downloadFile(u string) error {
 	}
 	dir = dir + "/filedownloads"
 
+	fileNameMutex.Lock()
+	defer fileNameMutex.Unlock()
+
 	fileName, err = getUniqueFileName(dir, "foo.zip")
 	if err != nil {
 		return err
@@ -64,14 +71,17 @@ func downloadFile(u string) error {
 }
 
 func getUniqueFileName(dir, fileName string) (string, error) {
+	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	ext := filepath.Ext(fileName)
+
 	for i := 1; ; i++ {
 		filePath := filepath.Join(dir, fileName)
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fileName, nil
 		} else if err != nil {
 			return "", err
-		}
-		fileName = fmt.Sprintf("foo_%d.zip", i)
+			}
+		fileName = fmt.Sprintf("%s_%d%s", baseName, i, ext)
 	}
 }
 

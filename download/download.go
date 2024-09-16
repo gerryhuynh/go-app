@@ -1,14 +1,11 @@
 package download
 
 import (
-	"context"
 	"fmt"
-	"mime"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	getter "github.com/hashicorp/go-getter/v2"
 )
 
 func Download(w http.ResponseWriter, req *http.Request) {
@@ -27,55 +24,57 @@ func Download(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 
-
 func downloadFile(u string) error {
-	ctx := context.Background()
-	pwd, err := os.Getwd()
+	fileName := "foo.zip"
+
+	resp, err := http.Get(u)
 	if err != nil {
-		return fmt.Errorf("failed to get current working directory: %w", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("Status:", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download file, status code: %d", resp.StatusCode)
 	}
 
-	fmt.Printf("URL: %s\n", u)
-	resp, err := http.Head(u)
+	dir, err := getCurrentDirectory()
 	if err != nil {
-		return fmt.Errorf("failed to fetch headers: %w", err)
+		return err
 	}
-	resp.Body.Close()
+	dir = dir + "/filedownloads"
 
-	fileName := "downloaded_file.zip"
-	// Print all headers
-	for key, values := range resp.Header {
-		for _, value := range values {
-			fmt.Printf("%s: %s\n", key, value)
+	fileName, err = getUniqueFileName(dir, "foo.zip")
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Create(filepath.Join(dir, fileName))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	return err
+}
+
+func getUniqueFileName(dir, fileName string) (string, error) {
+	for i := 1; ; i++ {
+		filePath := filepath.Join(dir, fileName)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			return fileName, nil
+		} else if err != nil {
+			return "", err
 		}
+		fileName = fmt.Sprintf("foo_%d.zip", i)
 	}
-	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
-		if _, params, err := mime.ParseMediaType(cd); err == nil {
-			if fn, ok := params["filename"]; ok {
-				fileName = fn
-			}
-		}
-	}
+}
 
-	dst := filepath.Join(pwd + "/filedownloads", fileName)
-
-	client := &getter.Client{
-		Decompressors: map[string]getter.Decompressor{
-			"zip": &getter.ZipDecompressor{},
-		},
-		Getters: []getter.Getter{
-			&getter.HttpGetter{},
-		},
-	}
-
-	_, err = client.Get(ctx, &getter.Request{
-		Src:     u,
-		Dst:     dst,
-		GetMode: getter.ModeFile,
-	})
+func getCurrentDirectory() (string, error) {
+	dir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to download file: %w", err)
+		return "", err
 	}
-
-	return nil
+	return dir, nil
 }

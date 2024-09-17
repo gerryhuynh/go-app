@@ -21,7 +21,7 @@ func DownloadSequential(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i := 0; i < n; i++ {
-		if err := downloadFile(url); err != nil {
+		if err := DownloadFile(url); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

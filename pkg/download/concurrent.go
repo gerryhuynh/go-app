@@ -26,7 +26,7 @@ func DownloadConcurrent(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			downloadFile(url)
+			DownloadFile(url)
 		}()
 	}
 	wg.Wait()

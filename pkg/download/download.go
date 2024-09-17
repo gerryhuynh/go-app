@@ -21,7 +21,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := downloadFile(url); err != nil {
+	if err := DownloadFile(url); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -30,7 +30,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 
-func downloadFile(u string) error {
+var DownloadFile = func(u string) error {
 	resp, err := downloadFromURL(u)
 	if err != nil {
 		return err

@@ -1,64 +1,50 @@
 package main
 
 import (
+	"context"
 	"go-app/pkg/user"
-	"net/http"
+	"log"
+	"net"
 
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/grpc"
 )
 
-// 0.0.0.0:50051
-// Loops on the socket on the socket
-// for {
-// 	conn, err := lis.Accept()
-// 	if err != nil {
-// 		log.Fatalf("Failed to accept connection: %v", err)
-// 	}
-// 	go handleConn(conn)
-// }
+type ExampleServer struct {
+	user.UnimplementedUserServiceServer
+}
 
+func (s *ExampleServer) GetUser(ctx context.Context, req *user.GetUserRequest) (*user.Person, error) {
+	return &user.Person{
+		Id:             "1",
+		Email:          "test@example.com",
+		Username:       "johndoe",
+		FirstName:      "John",
+		LastName:       "Doe",
+		Age:            30,
+		PhoneNumber:    "+1234567890",
+		Address:        "123 Main St",
+		City:           "New York",
+		Country:        "USA",
+		PostalCode:     "10001",
+		CreatedAt:      1648656000, // Unix timestamp for a sample date
+		LastLoginAt:    1648742400, // Unix timestamp for a sample date
+		IsActive:       true,
+		ProfilePicture: "https://example.com/profile.jpg",
+		Occupation:     "Software Engineer",
+		Company:        "Tech Corp",
+	}, nil
+}
 
-
-// HTTP POST request to /user.UserService/GetUser
-// Content-Type: application/protobuf
 func main() {
-	// http Handler
-	http.Handle(user.UserService_GetUser_FullMethodName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// we want to honour the Content-Type:
-		p := &user.Person{
-			Id: "1",
-			Email: "test@example.com",
-			Username: "johndoe",
-			FirstName: "John",
-			LastName: "Doe",
-			Age: 30,
-			PhoneNumber: "+1234567890",
-			Address: "123 Main St",
-		}
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 
-		switch r.Header.Get("Content-Type") {
-		case "application/protobuf":
-			out, err := proto.Marshal(p)
-			if err != nil {
-				http.Error(w, "Failed to marshal proto", http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/protobuf")
-			w.Write(out)
-		case "application/json":
-			out, err := protojson.Marshal(p)
-			if err != nil {
-				http.Error(w, "Failed to marshal json", http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(out)
-		default:
-			http.Error(w, "Content-Type not supported", http.StatusUnsupportedMediaType)
-			return
-		}
-	}))
+	grpcServer := grpc.NewServer()
+	user.RegisterUserServiceServer(grpcServer, &ExampleServer{})
 
-	http.ListenAndServe(":50051", nil)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }

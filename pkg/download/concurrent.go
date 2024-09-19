@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func DownloadConcurrent(w http.ResponseWriter, r *http.Request) {
@@ -33,4 +35,17 @@ func DownloadConcurrent(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "Downloads completed successfully")
+}
+
+func FOo() {
+	grp := 	&errgroup.Group{}
+
+	for i := 0; i < 10; i++ {
+		grp.Go(func() error {
+			return nil
+
+		})
+}
+
+	grp.Wait()
 }

@@ -1,20 +1,17 @@
 package main
 
 import (
-	"context"
+	"encoding/json"
+	"fmt"
 	"go-app/pkg/user"
-	"log"
-	"net"
+	"time"
 
-	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
-type ExampleServer struct {
-	user.UnimplementedUserServiceServer
-}
-
-func (s *ExampleServer) GetUser(ctx context.Context, req *user.GetUserRequest) (*user.Person, error) {
-	return &user.Person{
+func main() {
+	// Protobuf
+	person := &user.Person{
 		Id:             "1",
 		Email:          "test@example.com",
 		Username:       "johndoe",
@@ -32,19 +29,45 @@ func (s *ExampleServer) GetUser(ctx context.Context, req *user.GetUserRequest) (
 		ProfilePicture: "https://example.com/profile.jpg",
 		Occupation:     "Software Engineer",
 		Company:        "Tech Corp",
-	}, nil
-}
+	}
 
-func main() {
-	lis, err := net.Listen("tcp", ":50051")
+	// JSON
+	user := &user.User{
+		ID:             "1",
+		Email:          "test@example.com",
+		Username:       "johndoe",
+		FirstName:      "John",
+		LastName:       "Doe",
+		Age:            30,
+		PhoneNumber:    "+1234567890",
+		Address:        "123 Main St",
+		City:           "New York",
+		Country:        "USA",
+		PostalCode:     "10001",
+		CreatedAt:      time.Now().Add(-24 * time.Hour), // 1 day ago
+		LastLoginAt:    time.Now(),
+		IsActive:       true,
+		ProfilePicture: "https://example.com/profile.jpg",
+		Occupation:     "Software Engineer",
+		Company:        "Tech Corp",
+	}
+
+	jsonOutput, err := json.Marshal(user)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		fmt.Println("Error marshalling to JSON:", err)
+		return
 	}
 
-	grpcServer := grpc.NewServer()
-	user.RegisterUserServiceServer(grpcServer, &ExampleServer{})
+	fmt.Println("JSON Output:", string(jsonOutput))
+	fmt.Println("JSON Size:", len(jsonOutput))
 
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+
+	protoOutput, err := proto.Marshal(person)
+	if err != nil {
+		fmt.Println("Error marshalling to Protobuf:", err)
+		return
 	}
+
+	fmt.Println("Protobuf Output:", string(protoOutput))
+	fmt.Println("Protobuf Size:", len(protoOutput))
 }

@@ -4,11 +4,6 @@ package user;
 
 option go_package = "go-app/pkg/user";
 
-service UserService {
-  rpc GetUser(GetUserRequest) returns (Person) {}
-}
-message GetUserRequest {}
-
 message Person {
   string id = 1;
   string email = 2;

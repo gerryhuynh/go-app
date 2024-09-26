@@ -57,14 +57,14 @@ func downloadSequential(w http.ResponseWriter, url string, n int) {
 		return
 	}
 
-	dir, err := getDownloadDir()
+	dir, err := createNewDownloadDir()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	for i := 0; i < n; i++ {
-		file, err := createFile(dir, defaultFileName)
+		file, err := createFile(dir, defaultFileName, i)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -96,11 +96,11 @@ func createBuffer(resp *http.Response) (*bytes.Buffer, error) {
 	return buffer, nil
 }
 
-func createFile(dir, fileName string) (*os.File, error) {
-	filePath, err := getUniqueFilePath(dir, fileName)
-	if err != nil {
-		return nil, err
-	}
+func createFile(dir, fileName string, i int) (*os.File, error) {
+	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	ext := filepath.Ext(fileName)
+
+	filePath := filepath.Join(dir, fmt.Sprintf("%s_%d%s", baseName, i, ext))
 
 	return os.Create(filePath)
 }
@@ -152,31 +152,22 @@ func downloadFromURL(u string) (*http.Response, error) {
 	return resp, nil
 }
 
-func getDownloadDir() (string, error) {
+func createNewDownloadDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 	dir = filepath.Join(dir, downloadDir)
 
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		if err := os.RemoveAll(dir); err != nil {
+			return "", fmt.Errorf("failed to remove directory: %w", err)
+		}
+	}
+
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	return dir, nil
-}
-
-func getUniqueFilePath(dir, fileName string) (string, error) {
-	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	ext := filepath.Ext(fileName)
-
-	for i := 1; ; i++ {
-		filePath := filepath.Join(dir, fileName)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return filePath, nil
-		} else if err != nil {
-			return "", err
-		}
-		fileName = fmt.Sprintf("%s_%d%s", baseName, i, ext)
-	}
 }

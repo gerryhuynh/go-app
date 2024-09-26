@@ -26,25 +26,32 @@ func Download(w http.ResponseWriter, r *http.Request) {
 
 	n, err := getNParam(r.URL.Query())
 	if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	// s, err := getSequentialParam(r.URL.Query())
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
+	s, err := getSequentialParam(r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	resp, err := downloadFile(url)
+	if s {
+		downloadSequential(w, url, n)
+	} else {
+		downloadConcurrent(w, r, url, n)
+	}
+}
+
+func downloadSequential(w http.ResponseWriter, url string, n int) {
+	resp, err := downloadFromURL(url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	buffer := bytes.NewBuffer([]byte{})
-	_, err = io.Copy(buffer, resp.Body)
+	buffer, err := createBuffer(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -56,38 +63,16 @@ func Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files := make([]*os.File, n)
 	for i := 0; i < n; i++ {
-		filePath, err := getUniqueFilePath(dir, defaultFileName)
+		file, err := createFile(dir, defaultFileName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer file.Close()
 
-		file, err := os.Create(filePath)
+		_, err = io.Copy(file, bytes.NewReader(buffer.Bytes()))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		files[i] = file
-	}
-
-	writers := make([]io.Writer, n)
-	for i := 0; i < n; i++ {
-		writers[i] = files[i]
-	}
-
-	out := io.MultiWriter(writers...)
-
-	_, err = io.Copy(out, buffer)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for _, file := range files {
-		if err := file.Close(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -95,6 +80,29 @@ func Download(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "File downloaded successfully")
+}
+
+func downloadConcurrent(w http.ResponseWriter, r *http.Request, url string, n int) {
+	panic("not yet implemented")
+}
+
+func createBuffer(resp *http.Response) (*bytes.Buffer, error) {
+	buffer := bytes.NewBuffer([]byte{})
+	_, err := io.Copy(buffer, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
+}
+
+func createFile(dir, fileName string) (*os.File, error) {
+	filePath, err := getUniqueFilePath(dir, fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	return os.Create(filePath)
 }
 
 func getURLParam(query url.Values) (string, error) {
@@ -131,7 +139,7 @@ func getSequentialParam(query url.Values) (bool, error) {
 	return s, nil
 }
 
-func downloadFile(u string) (*http.Response, error) {
+func downloadFromURL(u string) (*http.Response, error) {
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const downloadDir = "filedownloads"
@@ -39,7 +41,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 	if s {
 		downloadSequential(w, url, n)
 	} else {
-		downloadConcurrent(w, r, url, n)
+		downloadConcurrent(w, url, n)
 	}
 }
 
@@ -82,27 +84,56 @@ func downloadSequential(w http.ResponseWriter, url string, n int) {
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 
-func downloadConcurrent(w http.ResponseWriter, r *http.Request, url string, n int) {
-	panic("not yet implemented")
-}
+func downloadConcurrent(w http.ResponseWriter, url string, n int) {
+	var buffer *bytes.Buffer
+	var dir string
 
-func createBuffer(resp *http.Response) (*bytes.Buffer, error) {
-	buffer := bytes.NewBuffer([]byte{})
-	_, err := io.Copy(buffer, resp.Body)
-	if err != nil {
-		return nil, err
+	eg := new(errgroup.Group)
+
+	eg.Go(func() error {
+		resp, err := downloadFromURL(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		buffer, err = createBuffer(resp)
+		return err
+	})
+
+	eg.Go(func() error {
+		var err error
+		dir, err = createNewDownloadDir()
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	return buffer, nil
-}
+	eg = new(errgroup.Group)
 
-func createFile(dir, fileName string, i int) (*os.File, error) {
-	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	ext := filepath.Ext(fileName)
+	for i := 0; i < n; i++ {
+		eg.Go(func() error {
+			file, err := createFile(dir, defaultFileName, i)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
 
-	filePath := filepath.Join(dir, fmt.Sprintf("%s_%d%s", baseName, i, ext))
+			_, err = io.Copy(file, bytes.NewReader(buffer.Bytes()))
+			return err
+		})
+	}
 
-	return os.Create(filePath)
+	if err := eg.Wait(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "File downloaded successfully")
 }
 
 func getURLParam(query url.Values) (string, error) {
@@ -152,6 +183,16 @@ func downloadFromURL(u string) (*http.Response, error) {
 	return resp, nil
 }
 
+func createBuffer(resp *http.Response) (*bytes.Buffer, error) {
+	buffer := bytes.NewBuffer([]byte{})
+	_, err := io.Copy(buffer, resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
+}
+
 func createNewDownloadDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -170,4 +211,13 @@ func createNewDownloadDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func createFile(dir, fileName string, i int) (*os.File, error) {
+	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	ext := filepath.Ext(fileName)
+
+	filePath := filepath.Join(dir, fmt.Sprintf("%s_%d%s", baseName, i, ext))
+
+	return os.Create(filePath)
 }

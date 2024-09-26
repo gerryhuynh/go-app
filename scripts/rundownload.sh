@@ -1,10 +1,12 @@
-# URL="https://cable.ayra.ch/empty/?id=3"
-URL="https://www.3gpp.org/ftp/Specs/archive/29_series/29.512/29512-000.zip"
+URL="https://cable.ayra.ch/empty/?id=3"
+# URL="https://www.3gpp.org/ftp/Specs/archive/29_series/29.512/29512-000.zip"
 N=1
 SEQUENTIAL=false
 
-while getopts ":n:s" opt; do
+while getopts ":u:n:s" opt; do
   case $opt in
+    u) URL="$OPTARG"
+    ;;
     n) N="$OPTARG"
     ;;
     s) SEQUENTIAL=true

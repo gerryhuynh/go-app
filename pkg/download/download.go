@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,4 +110,13 @@ func saveFile(dir, fileName string, resp *http.Response) error {
 
 	_, err = io.Copy(file, resp.Body)
 	return err
+}
+
+func getURLParam(w http.ResponseWriter, query url.Values) (string, bool) {
+	url := query.Get("url")
+	if url == "" {
+		http.Error(w, "URL parameter is required", http.StatusBadRequest)
+		return url, false
+	}
+	return url, true
 }

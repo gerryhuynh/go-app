@@ -1,65 +1,137 @@
 package download
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"sync"
 )
 
 const downloadDir = "filedownloads"
 const defaultFileName = "foo.zip"
 
-var fileMutex sync.Mutex
-
 func Download(w http.ResponseWriter, r *http.Request) {
-	url, ok := getURLParam(w, r.URL.Query())
-	if !ok {
+	query := r.URL.Query()
+
+	url, err := getURLParam(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := DownloadFile(url); err != nil {
+	n, err := getNParam(r.URL.Query())
+	if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+	}
+
+	// s, err := getSequentialParam(r.URL.Query())
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+
+	resp, err := downloadFile(url)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	defer resp.Body.Close()
+
+	buffer := bytes.NewBuffer([]byte{})
+	_, err = io.Copy(buffer, resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	dir, err := getDownloadDir()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	files := make([]*os.File, n)
+	for i := 0; i < n; i++ {
+		filePath, err := getUniqueFilePath(dir, defaultFileName)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		file, err := os.Create(filePath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		files[i] = file
+	}
+
+	writers := make([]io.Writer, n)
+	for i := 0; i < n; i++ {
+		writers[i] = files[i]
+	}
+
+	out := io.MultiWriter(writers...)
+
+	_, err = io.Copy(out, buffer)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for _, file := range files {
+		if err := file.Close(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 
-var DownloadFile = func(u string) error {
-	resp, err := downloadFromURL(u)
-	if err != nil {
-		return err
+func getURLParam(query url.Values) (string, error) {
+	url := query.Get("url")
+	if url == "" {
+		return "", fmt.Errorf("URL parameter is required")
 	}
-	defer resp.Body.Close()
-
-	dir, err := getDownloadDir()
-	if err != nil {
-		return err
-	}
-
-	fileMutex.Lock()
-	defer fileMutex.Unlock()
-
-	fileName, err := getUniqueFileName(dir, defaultFileName)
-	if err != nil {
-		return err
-	}
-
-	if err := saveFile(dir, fileName, resp); err != nil {
-		return err
-	}
-
-	fmt.Printf("File %q downloaded\n", fileName)
-	return nil
+	return url, nil
 }
 
-func downloadFromURL(u string) (*http.Response, error) {
+func getNParam(query url.Values) (int, error) {
+	nStr := query.Get("n")
+	if nStr == "" {
+		return 1, nil
+	}
+
+	n, err := strconv.Atoi(nStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid n parameter: %w", err)
+	}
+	return n, nil
+}
+
+func getSequentialParam(query url.Values) (bool, error) {
+	sStr := query.Get("s")
+	if sStr == "" {
+		return false, nil
+	}
+
+	s, err := strconv.ParseBool(sStr)
+	if err != nil {
+		return false, fmt.Errorf("invalid sequential parameter: %w", err)
+	}
+	return s, nil
+}
+
+func downloadFile(u string) (*http.Response, error) {
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err
@@ -86,37 +158,17 @@ func getDownloadDir() (string, error) {
 	return dir, nil
 }
 
-func getUniqueFileName(dir, fileName string) (string, error) {
+func getUniqueFilePath(dir, fileName string) (string, error) {
 	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 	ext := filepath.Ext(fileName)
 
 	for i := 1; ; i++ {
 		filePath := filepath.Join(dir, fileName)
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			return fileName, nil
+			return filePath, nil
 		} else if err != nil {
 			return "", err
 		}
 		fileName = fmt.Sprintf("%s_%d%s", baseName, i, ext)
 	}
-}
-
-func saveFile(dir, fileName string, resp *http.Response) error {
-	file, err := os.Create(filepath.Join(dir, fileName))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = io.Copy(file, resp.Body)
-	return err
-}
-
-func getURLParam(w http.ResponseWriter, query url.Values) (string, bool) {
-	url := query.Get("url")
-	if url == "" {
-		http.Error(w, "URL parameter is required", http.StatusBadRequest)
-		return url, false
-	}
-	return url, true
 }

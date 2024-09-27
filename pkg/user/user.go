@@ -3,11 +3,27 @@ package user
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 type User struct {
-	ID       string `json:"id"`
-	Email    string `json:"email"`
+	ID             int       `json:"id"`
+	Email          string    `json:"email"`
+	Username       string    `json:"username"`
+	FirstName      string    `json:"first_name"`
+	LastName       string    `json:"last_name"`
+	Age            int       `json:"age"`
+	PhoneNumber    string    `json:"phone_number"`
+	Address        string    `json:"address"`
+	City           string    `json:"city"`
+	Country        string    `json:"country"`
+	PostalCode     string    `json:"postal_code"`
+	CreatedAt      time.Time `json:"created_at"`
+	LastLoginAt    time.Time `json:"last_login_at"`
+	IsActive       bool      `json:"is_active"`
+	ProfilePicture string    `json:"profile_picture"`
+	Occupation     string    `json:"occupation"`
+	Company        string    `json:"company"`
 }
 
 type Response struct {

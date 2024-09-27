@@ -1,0 +1,10 @@
+type: go
+
+up:
+  - go:
+      version: 1.23.1
+      modules: on
+      tools:
+        - google.golang.org/protobuf/cmd/protoc-gen-go@latest
+  - packages:
+      - protoc

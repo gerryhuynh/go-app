@@ -11,5 +11,6 @@ func Server() http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("/download", download.Download)
 	router.HandleFunc("/create-user", user.CreateUser)
+	router.HandleFunc("/marshal-user", user.MarshalUser)
 	return router
 }

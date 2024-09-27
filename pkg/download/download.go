@@ -88,7 +88,7 @@ func downloadConcurrent(w http.ResponseWriter, url string, n int) {
 	var buffer *bytes.Buffer
 	var dir string
 
-	eg := new(errgroup.Group)
+	eg := &errgroup.Group{}
 
 	eg.Go(func() error {
 		resp, err := downloadFromURL(url)
@@ -112,7 +112,7 @@ func downloadConcurrent(w http.ResponseWriter, url string, n int) {
 		return
 	}
 
-	eg = new(errgroup.Group)
+	eg = &errgroup.Group{}
 
 	for i := 0; i < n; i++ {
 		eg.Go(func() error {

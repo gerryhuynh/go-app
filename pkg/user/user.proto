@@ -4,6 +4,11 @@ package user;
 
 option go_package = "pkg/user";
 
+service UserService {
+  rpc GetUser(GetUserRequest) returns (Person) {} // simple RPC
+}
+message GetUserRequest {}
+
 message Person {
     int32 id = 1;
     string email = 2;

@@ -6,6 +6,15 @@ import (
 )
 
 func TestGetURLParam(t *testing.T) {
+	t.Run("Missing URL", func(t *testing.T) {
+		query := url.Values{}
+		_, err := getURLParam(query)
+
+		if err == nil {
+			t.Error("Expected error, got nil")
+		}
+	})
+
 	t.Run("Valid URL", func(t *testing.T) {
 		want := "https://example.com"
 		query := url.Values{"url": []string{want}}
@@ -16,15 +25,6 @@ func TestGetURLParam(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("Expected %s, got %s", want, got)
-		}
-	})
-
-	t.Run("Missing URL", func(t *testing.T) {
-		query := url.Values{}
-		_, err := getURLParam(query)
-
-		if err == nil {
-			t.Error("Expected error, got nil")
 		}
 	})
 }

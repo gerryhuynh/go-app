@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -48,6 +49,7 @@ func Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadSequential(w http.ResponseWriter, url string, n int) {
+	start := time.Now()
 	resp, err := downloadFromURL(url)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -83,10 +85,13 @@ func downloadSequential(w http.ResponseWriter, url string, n int) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	duration := time.Since(start)
+	fmt.Fprintf(w, "Sequential download completed in %v\n", duration)
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 
 func downloadConcurrent(w http.ResponseWriter, url string, n int) {
+	start := time.Now()
 	var buffer *bytes.Buffer
 	var dir string
 
@@ -136,6 +141,8 @@ func downloadConcurrent(w http.ResponseWriter, url string, n int) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	duration := time.Since(start)
+	fmt.Fprintf(w, "Concurrent download completed in %v\n", duration)
 	fmt.Fprintln(w, "File downloaded successfully")
 }
 

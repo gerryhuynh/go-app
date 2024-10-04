@@ -1,27 +1,38 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"go-app/server"
 )
 
 func main() {
-	useGRPC := flag.Bool("grpc", false, "Use gRPC server")
-	flag.Parse()
+	const (
+		HTTP_PORT = ":8080"
+		GRPC_PORT = ":50051"
+	)
 
-	if *useGRPC {
-		fmt.Println("gRPC server starting at http://localhost:50051")
-		if err := server.GRPCServer(); err != nil {
-			log.Fatalf("Failed to serve: %v", err)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		fmt.Println("HTTP server starting at http://localhost" + HTTP_PORT)
+		if err := http.ListenAndServe(HTTP_PORT, server.HTTPServer()); err != nil {
+			log.Printf("HTTP server failed to start: %v\n", err)
 		}
-	} else {
-		fmt.Println("HTTP server starting at http://localhost:8080")
-		if err := http.ListenAndServe(":8080", server.HTTPServer()); err != nil {
-			fmt.Printf("Server failed to start: %v\n", err)
+	}()
+
+	go func() {
+		defer wg.Done()
+		fmt.Println("gRPC server starting at http://localhost" + GRPC_PORT)
+		if err := server.GRPCServer(GRPC_PORT); err != nil {
+			log.Printf("gRPC server failed to serve: %v\n", err)
 		}
-	}
+	}()
+
+	wg.Wait()
 }

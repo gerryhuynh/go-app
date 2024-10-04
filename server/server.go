@@ -46,8 +46,8 @@ func HTTPServer() http.Handler {
 	return router
 }
 
-func GRPCServer() error {
-	lis, err := net.Listen("tcp", ":50051")
+func GRPCServer(port string) error {
+	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		return err
 	}

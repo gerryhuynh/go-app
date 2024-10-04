@@ -15,7 +15,7 @@ if [ $# -eq 1 ]; then
     esac
 fi
 
-kill $(lsof -ti:8080)
+kill $(lsof -ti:8080,50051)
 go run main.go &
 sleep 1
 curl -H "$CONTENT_TYPE" http://localhost:8080/marshal-user

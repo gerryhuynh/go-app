@@ -20,7 +20,7 @@ DEFAULT_JSON='{
 
 JSON_DATA=${1:-$DEFAULT_JSON}
 
-kill $(lsof -ti:8080)
+kill $(lsof -ti:8080,50051)
 go run main.go &
 sleep 1
 curl -X POST http://localhost:8080/create-user \

@@ -14,8 +14,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const downloadDir = "filedownloads"
-const defaultFileName = "foo.zip"
+const (
+	DOWNLOAD_DIR      = "filedownloads"
+	DEFAULT_FILE_NAME = "foo.zip"
+)
 
 func Download(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -66,7 +68,7 @@ func downloadSequential(w http.ResponseWriter, url string, n int) {
 	}
 
 	for i := 0; i < n; i++ {
-		file, err := createFile(dir, defaultFileName, i)
+		file, err := createFile(dir, DEFAULT_FILE_NAME, i)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -115,8 +117,9 @@ func downloadConcurrent(w http.ResponseWriter, url string, n int) {
 	eg = &errgroup.Group{}
 
 	for i := 0; i < n; i++ {
+		i := i
 		eg.Go(func() error {
-			file, err := createFile(dir, defaultFileName, i)
+			file, err := createFile(dir, DEFAULT_FILE_NAME, i)
 			if err != nil {
 				return err
 			}
@@ -198,7 +201,7 @@ func createNewDownloadDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir = filepath.Join(dir, downloadDir)
+	dir = filepath.Join(dir, DOWNLOAD_DIR)
 
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		if err := os.RemoveAll(dir); err != nil {

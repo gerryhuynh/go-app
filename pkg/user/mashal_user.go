@@ -3,7 +3,6 @@ package user
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -88,31 +87,27 @@ func MarshalUser(w http.ResponseWriter, r *http.Request) {
 func outputJSON(w http.ResponseWriter, user *User) {
 	json, err := json.Marshal(user)
 	if err != nil {
-		log.Fatalf("Error marshalling user: %v", err)
+		http.Error(w, fmt.Sprintf("Error marshalling user: %v", err), http.StatusInternalServerError)
+		return
 	}
-
-	fmt.Println("\nJSON")
-	fmt.Println("OUTPUT:", json)
-	fmt.Println("SIZE:", len(json))
-	fmt.Println("STRING:")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(json)
+
+	output := fmt.Sprintf("\nJSON\nOUTPUT: %v\nSIZE: %d\nSTRING:\n%s", json, len(json), string(json))
+	w.Write([]byte(output))
 }
 
 func outputProtobuf(w http.ResponseWriter, user *Person) {
 	proto, err := proto.Marshal(user)
 	if err != nil {
-		log.Fatalf("Error marshalling person: %v", err)
+		http.Error(w, fmt.Sprintf("Error marshalling person: %v", err), http.StatusInternalServerError)
+		return
 	}
-
-	fmt.Println("\nPROTOBUF")
-	fmt.Println("OUTPUT:", proto)
-	fmt.Println("SIZE:", len(proto))
-	fmt.Println("STRING:")
 
 	w.Header().Set("Content-Type", "application/protobuf")
 	w.WriteHeader(http.StatusOK)
-	w.Write(proto)
+
+	output := fmt.Sprintf("\nPROTOBUF\nOUTPUT: %v\nSIZE: %d\nSTRING:\n%s", proto, len(proto), string(proto))
+	w.Write([]byte(output))
 }

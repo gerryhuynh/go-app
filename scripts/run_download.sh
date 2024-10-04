@@ -20,7 +20,7 @@ while getopts ":u:n:s" opt; do
   esac
 done
 
-kill $(lsof -ti:8080)
+kill $(lsof -ti:8080,50051)
 go run main.go &
 sleep 1
 curl "http://localhost:8080/download?url=$URL&n=$N&s=$SEQUENTIAL"

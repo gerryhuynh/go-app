@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 
 	"go-app/server"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -15,24 +16,19 @@ func main() {
 		GRPC_PORT = ":50051"
 	)
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	eg := &errgroup.Group{}
 
-	go func() {
-		defer wg.Done()
-		fmt.Println("HTTP server starting at http://localhost" + HTTP_PORT)
-		if err := http.ListenAndServe(HTTP_PORT, server.HTTPServer()); err != nil {
-			log.Printf("HTTP server failed to start: %v\n", err)
-		}
-	}()
+	eg.Go(func() error {
+		fmt.Println("HTTP server starting at port", HTTP_PORT)
+		return fmt.Errorf("HTTP: %w", http.ListenAndServe(HTTP_PORT, server.HTTPServer()))
+	})
 
-	go func() {
-		defer wg.Done()
-		fmt.Println("gRPC server starting at http://localhost" + GRPC_PORT)
-		if err := server.GRPCServer(GRPC_PORT); err != nil {
-			log.Printf("gRPC server failed to serve: %v\n", err)
-		}
-	}()
+	eg.Go(func() error {
+		fmt.Println("gRPC server starting at port", GRPC_PORT)
+		return fmt.Errorf("gRPC: %w", server.GRPCServer(GRPC_PORT))
+	})
 
-	wg.Wait()
+	if err := eg.Wait(); err != nil {
+		log.Printf("Server failed to start: %v\n", err)
+	}
 }

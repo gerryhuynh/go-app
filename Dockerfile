@@ -17,5 +17,3 @@ COPY --from=0 /go-app /go-app
 EXPOSE 50051 8080
 
 ENTRYPOINT ["/go-app"]
-CMD []
-

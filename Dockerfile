@@ -7,12 +7,7 @@ RUN go mod download
 
 COPY . ./
 
-RUN CGO_ENABLED=0 go build -v -o /go-app
-
-FROM ubuntu:latest
-
-RUN apt-get update && apt-get install -y ca-certificates
-COPY --from=0 /go-app /go-app
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /go-app
 
 EXPOSE 50051 8080
 
